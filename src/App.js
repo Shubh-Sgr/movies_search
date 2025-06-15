@@ -18,6 +18,7 @@ import SearchIcon from "@mui/icons-material/Search";
 function App() {
   const [moviesData, setMoviesData] = useState([]);
   const [searchVal, setSearchVal] = useState("");
+  const [debouncedSearchVal, setDebouncedSearchVal] = useState("");
   const [value, setValue] = useState("trending");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,24 +30,6 @@ function App() {
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
-  };
-
-  const searchHandler = async (val) => {
-    setSearchVal(val);
-    if (val !== "") {
-      try {
-        setIsLoading(true);
-        let response = await fetch(`${process.env.REACT_APP_SEARCH_URL}${val}`);
-        let ans = await response.json();
-        setIsLoading(false);
-        setMoviesData(ans.results);
-      } catch (err) {
-        setIsLoading(false);
-        console.error(err);
-      }
-    } else {
-      userBasedMovies(tabUrls.trending_url);
-    }
   };
 
   const userBasedMovies = async (url) => {
@@ -76,6 +59,40 @@ function App() {
     userBasedMovies(url);
     // eslint-disable-next-line
   }, [value]);
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchVal(searchVal);
+    }, 500); // Debounce time in ms
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchVal]);
+
+  // Perform search when debounced value changes
+  useEffect(() => {
+    const searchMovies = async () => {
+      if (debouncedSearchVal.trim() !== "") {
+        try {
+          setIsLoading(true);
+          let response = await fetch(`${process.env.REACT_APP_SEARCH_URL}${debouncedSearchVal}`);
+          let ans = await response.json();
+          setMoviesData(ans.results);
+          setIsLoading(false);
+        } catch (err) {
+          setIsLoading(false);
+          console.error(err);
+        }
+      } else {
+        userBasedMovies(tabUrls.trending_url);
+      }
+    };
+
+    searchMovies();
+    // eslint-disable-next-line
+  }, [debouncedSearchVal]);
 
   return (
     <Box sx={{ bgcolor: "#000", minHeight: "100vh", color: "#fff" }}>
@@ -126,7 +143,7 @@ function App() {
           variant="outlined"
           placeholder="Search Movies"
           value={searchVal}
-          onChange={(e) => searchHandler(e.target.value)}
+          onChange={(e) => setSearchVal(e.target.value)}
           sx={{
             input: { color: "#fff" },
             bgcolor: "#121212",
